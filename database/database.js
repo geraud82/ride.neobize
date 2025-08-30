@@ -6,23 +6,65 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables from backend directory
-dotenv.config({ path: path.join(__dirname, '../backend/.env') });
+// Load environment variables - try multiple paths
+const envPaths = [
+  path.join(__dirname, '../backend/.env'),
+  path.join(process.cwd(), 'backend/.env'),
+  path.join(process.cwd(), '.env'),
+  '.env'
+];
+
+console.log('🔍 Trying to load environment variables from:');
+for (const envPath of envPaths) {
+  console.log(`  - ${envPath}`);
+  const result = dotenv.config({ path: envPath });
+  if (!result.error) {
+    console.log(`✅ Successfully loaded from: ${envPath}`);
+    break;
+  } else {
+    console.log(`❌ Failed to load from: ${envPath} - ${result.error.message}`);
+  }
+}
+
+// Debug environment variables
+console.log('🔍 Environment variables loaded:');
+console.log(`  DB_HOST: ${process.env.DB_HOST || 'undefined'}`);
+console.log(`  DB_PORT: ${process.env.DB_PORT || 'undefined'}`);
+console.log(`  DB_NAME: ${process.env.DB_NAME || 'undefined'}`);
+console.log(`  DB_USER: ${process.env.DB_USER || 'undefined'}`);
+console.log(`  DB_PASSWORD: ${process.env.DB_PASSWORD ? '[SET]' : 'undefined'}`);
+console.log(`  DATABASE_URL: ${process.env.DATABASE_URL ? '[SET]' : 'undefined'}`);
 
 const { Pool } = pg;
 
 // Database connection configuration
-const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT) || 5432,
-  database: process.env.DB_NAME || 'neobize_shuttle',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD ? String(process.env.DB_PASSWORD) : undefined,
-  // Connection pool settings
-  max: 20, // Maximum number of clients in the pool
-  idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
-};
+let dbConfig;
+
+// For development, use individual connection parameters for better debugging
+if (process.env.NODE_ENV === 'development' || !process.env.DATABASE_URL) {
+  dbConfig = {
+    host: process.env.DB_HOST || 'localhost',
+    port: parseInt(process.env.DB_PORT) || 5432,
+    database: process.env.DB_NAME || 'neobize_shuttle',
+    user: process.env.DB_USER || 'postgres',
+    password: process.env.DB_PASSWORD ? String(process.env.DB_PASSWORD) : undefined,
+    ssl: false,
+    // Connection pool settings
+    max: 20, // Maximum number of clients in the pool
+    idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+    connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
+  };
+} else {
+  // Use DATABASE_URL for production (cloud deployments like Render)
+  dbConfig = {
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    // Connection pool settings
+    max: 20, // Maximum number of clients in the pool
+    idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+    connectionTimeoutMillis: 10000, // Longer timeout for cloud databases
+  };
+}
 
 // Debug database configuration (without showing password)
 console.log('🔧 Database configuration:', {

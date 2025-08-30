@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { Link } from "react-router-dom";
+import { ApiContext } from "./App";
 
 interface User {
   id: string;
@@ -34,6 +35,7 @@ const phoneDigits = "+13097990907";
 const emailTo = "contact@neobize.com";
 
 export default function UserDashboard() {
+  const apiUrl = useContext(ApiContext);
   const [user, setUser] = useState<User | null>(null);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,7 +57,7 @@ export default function UserDashboard() {
 
   const fetchUserReservations = async (userEmail: string) => {
     try {
-      const response = await fetch(`http://localhost:3008/api/users/${encodeURIComponent(userEmail)}/reservations`);
+      const response = await fetch(`${apiUrl}/api/users/${encodeURIComponent(userEmail)}/reservations`);
       const data = await response.json();
       
       if (data.success) {
@@ -81,7 +83,7 @@ export default function UserDashboard() {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:3008/api/users/login', {
+      const response = await fetch(`${apiUrl}/api/users/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

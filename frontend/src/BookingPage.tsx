@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useContext, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { ApiContext } from "./App";
 
 const cities = [
   "Moline",
@@ -15,12 +16,9 @@ const destinations = [
   { label: "Quad Cities Area (Return)", value: "Quad Cities" },
 ];
 
-const phoneDisplay = "(309) 799-0907";
-const phoneDigits = "+13097990907";
-const emailTo = "contact@neobize.com";
-
 export default function BookingPage() {
   const navigate = useNavigate();
+  const apiUrl = useContext(ApiContext);
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -77,28 +75,6 @@ export default function BookingPage() {
     return Object.keys(e).length === 0;
   }
 
-  function buildMessage() {
-    const lines = [
-      `NEOBIZE Airport Shuttle Reservation Request`,
-      `Name: ${form.firstName} ${form.lastName}`,
-      `Email: ${form.email}`,
-      `Phone: ${form.phone}`,
-      `Route: ${form.fromCity} → ${form.to}`,
-      `Pickup Address: ${form.pickupAddress}`,
-      `Drop-off Address: ${form.dropoffAddress}`,
-      `Trip: ${form.direction === "oneway" ? "One-way" : "Round-trip"}`,
-      `Pickup: ${form.date} at ${form.time}`,
-      `Passengers: ${form.passengers}`,
-      `Luggage: ${form.luggage}`,
-    ];
-    if (isRoundTrip) lines.push(`Return: ${form.returnDate} at ${form.returnTime}`);
-    if (form.promo) lines.push(`Promo Code: ${form.promo}`);
-    if (form.notes) lines.push(`Notes: ${form.notes}`);
-    lines.push("—");
-    lines.push("Please confirm availability and provide flat-rate pricing.");
-    return lines.join("\n");
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
@@ -107,7 +83,7 @@ export default function BookingPage() {
     setSubmitStatus({ type: null, message: '' });
 
     try {
-      const response = await fetch('http://localhost:3008/api/reservations', {
+      const response = await fetch(`${apiUrl}/api/reservations`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

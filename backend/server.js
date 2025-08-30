@@ -10,31 +10,64 @@ import { initializeDatabase, db } from '../database/database.js';
 // Load environment variables
 dotenv.config();
 
+// Debug environment loading
+console.log('🔍 Backend environment variables:');
+console.log(`  NODE_ENV: ${process.env.NODE_ENV || 'undefined'}`);
+console.log(`  PORT: ${process.env.PORT || 'undefined'}`);
+console.log(`  DB_HOST: ${process.env.DB_HOST || 'undefined'}`);
+console.log(`  DB_NAME: ${process.env.DB_NAME || 'undefined'}`);
+console.log(`  DB_USER: ${process.env.DB_USER || 'undefined'}`);
+console.log(`  DB_PASSWORD: ${process.env.DB_PASSWORD ? '[SET]' : 'undefined'}`);
+console.log(`  DATABASE_URL: ${process.env.DATABASE_URL ? '[SET]' : 'undefined'}`);
+
 const app = express();
 const PORT = process.env.PORT || 3008;
 
 // Security middleware
 app.use(helmet());
 
-// Rate limiting
+// Rate limiting - more lenient for production
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // limit each IP to 10 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
+  windowMs: process.env.RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000, // 15 minutes
+  max: process.env.RATE_LIMIT_MAX_REQUESTS || 100, // Allow more requests in production
+  message: {
+    success: false,
+    error: 'Too many requests from this IP, please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 app.use('/api/', limiter);
 
 // CORS configuration
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:5173'
+];
+
+// Add production frontend URL if in production
+if (process.env.NODE_ENV === 'production' && process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL);
+}
+
 app.use(cors({
-  origin: [
-    process.env.FRONTEND_URL || 'http://localhost:5173',
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://localhost:3002',
-    'http://localhost:5173'
-  ],
-  credentials: true
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Body parsing middleware
